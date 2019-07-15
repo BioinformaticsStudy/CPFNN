@@ -5,29 +5,17 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-
+import correlation
 
 # settings
 class Config(object):
     #473034 303236 9607 8105 8195
     input_dim = 473034 
     hidden_dim = 200
-    path = '/data/zhanglab/ylin/dna_dataset/450k/new_parser/5_fold_validation/'
-    setname = 'dataset_0_'
-    
-    #train_file_path = path + 'except_' + setname + '4datasets_train.csv'
-    #test_file_path = path + setname + '4datasets_test.csv'
-    #train_file_path = path+'after_correlation_0.3_except_dataset_0_4datasets_train.csv'
-    #test_file_path = path+'after_correlation_0.3dataset_0_4datasets_test.csv'
-    #spearman_path = path + setname + 'spearmancor.txt'
-    #pearson_path = path + setname + 'pearsoncor.txt'
-
-    train_file_path = '/data/zhanglab/ylin/dna_dataset/450k/new_parser/1000samples/train_combat.csv'
-    test_file_path = '/data/zhanglab/ylin/dna_dataset/450k/new_parser/1000samples/test_combat.csv'
-    spearman_path = '/data/zhanglab/ylin/dna_dataset/450k/new_parser/1000samples/spearmancor.txt'
-    pearson_path = '/data/zhanglab/ylin/dna_dataset/450k/new_parser/1000samples/pearsoncor.txt'
+    train_file_path = './../data/sample_training.csv'
+    test_file_path = './../data/sample_test.csv'
     output_dim = 1
-    epoch_num = 800
+    epoch_num = 200
     learning_rate = 0.01
     alpha = 5 
     beta = 0 
@@ -45,17 +33,14 @@ class neural_network(nn.Module):
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim,output_dim)
         self.bn1 = nn.BatchNorm1d(hidden_dim)
-        #self.ones = torch.ones([hidden_dim, input_dim])
-        #self.ones[:,indexes] = 0 
 
     def init_weights(self):
         init.xavier_normal(self.fc1.weight) 
         init.xavier_normal(self.fc2.weight)
-        #self.fc1.weight = torch.mul(self.fc1.weight,self.ones)
 
     def forward(self, x_in, corr, indexes, counter, apply_softmax=False):
        
-        a_1 = self.bn1(F.leaky_relu(self.fc1(x_in)))  # activaton function added!
+        a_1 = F.leaky_relu(self.fc1(x_in))  # activaton function added!
         y_pred = F.leaky_relu(self.fc2(a_1))
         self.l1_penalty = torch.norm(self.fc1.weight,1)
         self.l2_penalty = torch.norm(self.fc1.weight,2)
@@ -161,7 +146,6 @@ else:
 
 opt = Config()
 
-print('name',opt.setname)
 print('alpha', opt.alpha)
 print('beta', opt.beta)
 print('epoch', opt.epoch_num)
@@ -177,26 +161,17 @@ train = np.loadtxt(opt.train_file_path, skiprows=1, delimiter=',')
 print("Finish read training set")
 test = np.loadtxt(opt.test_file_path, skiprows=1, delimiter=',')
 print("Finish read test set")
-spearman_corr = np.loadtxt(opt.spearman_path, delimiter = '/n') 
-pearson_corr = np.loadtxt(opt.pearson_path, delimiter = '/n')
-print('Finish read corr')
+spearman_corr,pearson_corr = correlation.calculate_correlation(train) 
 
 spearman_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])<opt.cor]
 print(len(spearman_index))
 spearman_complement_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])>opt.cor]
 pearson_index = [x for x in range(len(pearson_corr)) if abs(pearson_corr[x])<opt.cor]
 pearson_complement_index = [x for x in range(len(pearson_corr)) if abs(pearson_corr[x])>opt.cor]
-'''
-sorted_corr = np.sort(abs(spearman_corr))[::-1]
-spearman_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])<sorted_corr[opt.num_sites]]
-spearman_complement_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])>sorted_corr[opt.num_sites]]
-print(len(spearman_complement_index))
-'''
 train = torch.from_numpy(train).float().to(device)
 test = torch.from_numpy(test).float().to(device)
 spearman_corr = torch.from_numpy(spearman_corr).float().to(device)
 pearson_corr = torch.from_numpy(pearson_corr).float().to(device)
-
 
 print(train.shape)
 print(test.shape)
@@ -206,13 +181,7 @@ y_train = train[:,0].reshape(-1,1)
 x_test = test[:,1:]
 y_test = test[:,0].reshape(-1,1)
 
-#print(x_train.size())
-#print(x_test.shape)
-#print(y_train.shape)
-#print(y_test.shape)
-
 model = neural_network(input_dim=opt.input_dim,hidden_dim=opt.hidden_dim,output_dim=opt.output_dim, indexes = spearman_index).to(device)
-
 
 trainer = Trainer(epoch=opt.epoch_num,model=model,batch_size=opt.batch_size)
 trainer.train_by_random(train, spearman_corr, spearman_index, spearman_complement_index, alpha =  opt.alpha, beta = opt.beta, l1_ratio =  opt.l1_ratio )
@@ -220,16 +189,3 @@ trainer.test(x_test, y_test, spearman_corr, spearman_index, spearman_complement_
 #model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "CpG_Sites_model_{0}.pt".format(__file__[:5]))
 #torch.save(model.state_dict(), model_path)
 
-model_dict = model.state_dict()
-first_weight = model_dict['fc1.weight'].cpu().numpy()
-"""
-first_bias = model_dict['fc1.bias'].cpu().numpy()
-second_weight = model_dict['fc2.weight'].cpu().numpy()
-second_bias = model_dict['fc2.bias'].cpu().numpy()
-"""
-np.savetxt('/data/zhanglab/ylin/dna_dataset/450k/new_parser/1000samples/weight_vector_corrLasso.txt', first_weight, delimiter=',') 
-"""
-np.savetxt('second_layer_weight_vector.txt', second_weight, delimiter=',') 
-np.savetxt('first_layer_bias_vector.txt', first_bias, delimiter=',')
-np.savetxt('second_layer_bias_vector.txt', second_bias, delimiter=',')
-"""
