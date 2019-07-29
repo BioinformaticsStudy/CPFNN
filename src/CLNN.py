@@ -1,5 +1,4 @@
 import os
-import pandas as pd
 import torch 
 import numpy as np
 import torch.nn as nn
@@ -26,13 +25,11 @@ class Config(object):
     use_gpu = True  # use GPU or not
 
 
-# Multilayer Perceptron 
-class neural_network(nn.Module):
+class neural_network_CLNN(nn.Module):
     def __init__(self, input_dim, hidden_dim,output_dim, indexes):
         super(neural_network, self).__init__()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.fc2 = nn.Linear(hidden_dim,output_dim)
-        self.bn1 = nn.BatchNorm1d(hidden_dim)
 
     def init_weights(self):
         init.xavier_normal(self.fc1.weight) 
@@ -113,8 +110,6 @@ class Trainer(object):
                 self.optimizer.step()
                                 # Verbose
             if (t%20==0):
-                # Print the gredient
-            #    print(self.model.fc1.weight.grad)
                 print ("epoch: {0:02d} | loss: {1:.2f} | acc: {2:.2f}".format(t, loss, acc / len(y_train)))
 
     @staticmethod
@@ -122,9 +117,6 @@ class Trainer(object):
         difference = torch.abs(y_labels-y_pred)
         correct = sum(list(map(lambda x: 1 if x<2 else 0,difference)))
         return correct
-
-   # @staticmethod
-   # def get_data_group()
 
     def test(self,x_test,y_test, correlation, indexes, complement_indexes):
         model = self.model.eval()
@@ -181,11 +173,9 @@ y_train = train[:,0].reshape(-1,1)
 x_test = test[:,1:]
 y_test = test[:,0].reshape(-1,1)
 
-model = neural_network(input_dim=opt.input_dim,hidden_dim=opt.hidden_dim,output_dim=opt.output_dim, indexes = spearman_index).to(device)
+model = neural_network_CLNN(input_dim=opt.input_dim,hidden_dim=opt.hidden_dim,output_dim=opt.output_dim, indexes = spearman_index).to(device)
 
 trainer = Trainer(epoch=opt.epoch_num,model=model,batch_size=opt.batch_size)
 trainer.train_by_random(train, spearman_corr, spearman_index, spearman_complement_index, alpha =  opt.alpha, beta = opt.beta, l1_ratio =  opt.l1_ratio )
 trainer.test(x_test, y_test, spearman_corr, spearman_index, spearman_complement_index)
-#model_path = os.path.join(os.path.abspath(os.path.dirname(__file__)), "CpG_Sites_model_{0}.pt".format(__file__[:5]))
-#torch.save(model.state_dict(), model_path)
 
