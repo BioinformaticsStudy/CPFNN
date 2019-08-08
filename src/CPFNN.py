@@ -25,7 +25,7 @@ class Config(object):
     use_gpu = True  # use GPU or not
 
 
-class neural_network_CLNN(nn.Module):
+class neural_network_CPNFN(nn.Module):
     def __init__(self, input_dim, hidden_dim,output_dim, indexes):
         super(neural_network, self).__init__()
         self.fc1 = nn.Linear(input_dim, hidden_dim)
@@ -173,7 +173,7 @@ y_train = train[:,0].reshape(-1,1)
 x_test = test[:,1:]
 y_test = test[:,0].reshape(-1,1)
 
-model = neural_network_CLNN(input_dim=opt.input_dim,hidden_dim=opt.hidden_dim,output_dim=opt.output_dim, indexes = spearman_index).to(device)
+model = neural_network_CPFNN(input_dim=opt.input_dim,hidden_dim=opt.hidden_dim,output_dim=opt.output_dim, indexes = spearman_index).to(device)
 
 trainer = Trainer(epoch=opt.epoch_num,model=model,batch_size=opt.batch_size)
 trainer.train_by_random(train, spearman_corr, spearman_index, spearman_complement_index, alpha =  opt.alpha, beta = opt.beta, l1_ratio =  opt.l1_ratio )
