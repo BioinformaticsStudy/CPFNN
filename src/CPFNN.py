@@ -8,13 +8,13 @@ import correlation
 
 # settings
 class Config(object):
-    #473034 303236 9607 8105 8195
-    input_dim = 473034 
-    hidden_dim = 200
-    train_file_path = './../data/sample_training.csv'
-    test_file_path = './../data/sample_test.csv'
-    output_dim = 1
-    epoch_num = 200
+    #Dimentions: 473034 303236 9607 8105 8195. 
+    input_dim = 473034 //the number of biological makers
+    hidden_dim = 200   //the number of neuro in hidden layer 
+    train_file_path = './../data/sample_training.csv' //training file path
+    test_file_path = './../data/sample_test.csv' //test file path
+    output_dim = 1     //the output is the predicted age
+    epoch_num = 200    //number of epoch 
     learning_rate = 0.01
     alpha = 5 
     beta = 0 
