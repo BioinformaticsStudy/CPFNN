@@ -2,8 +2,8 @@ import numpy as np
 from scipy import stats
 
 def calculate_correlation(data):
-    spearman_result = []
-    pearson_result = []
+    spearman_result = [] #list that store return spearman correlation result
+    pearson_result = [] #list that store return pearson correlation result
     age = data[:,0]
     for i in range(1,len(data[0])):
         s_rho,pvalue = stats.spearmanr(data[:,i],age)
