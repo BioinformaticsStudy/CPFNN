@@ -9,60 +9,64 @@ import correlation
 # settings
 class Config(object):
     #Dimentions: 473034 303236 9607 8105 8195. 
-    input_dim = 473034 //the number of biological makers
-    hidden_dim = 200   //the number of neuro in hidden layer 
-    train_file_path = './../data/sample_training.csv' //training file path
-    test_file_path = './../data/sample_test.csv' //test file path
-    output_dim = 1     //the output is the predicted age
-    epoch_num = 200    //number of epoch 
-    learning_rate = 0.01
-    alpha = 5 
-    beta = 0 
-    l1_ratio = 0 
-    batch_size = 20 
-    cor = 0.3
-    num_sites = 20000
+    input_dim = 473034 #the number of biological makers
+    hidden_dim = 200   #the number of neuro in hidden layer 
+    train_file_path = './../data/sample_training.csv' #training file path
+    test_file_path = './../data/sample_test.csv' #test file path
+    output_dim = 1     #the output is the predicted age
+    epoch_num = 200    #number of epoch 
+    learning_rate = 0.01 #learning rate 
+    alpha = 5 #penality parameter
+    l1_ratio = 0 #l1 penality ratio
+    batch_size = 20 #batch size
+    cor = 0.3 #correlation threshod that select CpG sites for learning
+    num_sites = 20000 #top high correlation site that selected for learning 
     use_gpu = True  # use GPU or not
 
 
 class neural_network_CPNFN(nn.Module):
+    #initialize neural network structure
     def __init__(self, input_dim, hidden_dim,output_dim, indexes):
         super(neural_network, self).__init__()
-        self.fc1 = nn.Linear(input_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim,output_dim)
+        self.fc1 = nn.Linear(input_dim, hidden_dim) #initialize first layer
+        self.fc2 = nn.Linear(hidden_dim,output_dim) #initialize second layer
 
+    #initialize weights
     def init_weights(self):
-        init.xavier_normal(self.fc1.weight) 
-        init.xavier_normal(self.fc2.weight)
-
+        init.xavier_normal(self.fc1.weight) #initialize first layer weight Xavier initialization
+        init.xavier_normal(self.fc2.weight) #initialize second layer weight Xavier initialization
+    
+    #forward propogation
     def forward(self, x_in, corr, indexes, counter, apply_softmax=False):
        
         a_1 = F.leaky_relu(self.fc1(x_in))  # activaton function added!
-        y_pred = F.leaky_relu(self.fc2(a_1))
-        self.l1_penalty = torch.norm(self.fc1.weight,1)
-        self.l2_penalty = torch.norm(self.fc1.weight,2)
-        self.corr_l1_penalty = torch.sum(torch.sum(torch.abs(self.fc1.weight), dim = 0)[indexes])
-        self.corr_l2_penalty = torch.sum(torch.sum((self.fc1.weight)**2, dim = 0)[counter])
+        y_pred = F.leaky_relu(self.fc2(a_1)) #prediction
+        self.l1_penalty = torch.norm(self.fc1.weight,1) #l1 penality
+        self.l2_penalty = torch.norm(self.fc1.weight,2) #l2 penality
+        self.corr_l1_penalty = torch.sum(torch.sum(torch.abs(self.fc1.weight), dim = 0)[indexes]) #corr lasso penality
+        self.corr_l2_penalty = torch.sum(torch.sum((self.fc1.weight)**2, dim = 0)[counter]) #corr ridge penality
         if apply_softmax:
-            y_pred = F.softmax(y_pred, dim=1)
+            y_pred = F.softmax(y_pred, dim=1) #apply softmax to the prediction
 
         return y_pred
 
-
+#neural network trainer
 class Trainer(object):
+    #initialize trainer parameters
     def __init__(self,epoch,model,batch_size):
-        self.model = model
-        self.epoch = epoch
-        self.optimizer = optim.Adam(self.model.parameters())
-        self.loss_fn = nn.MSELoss()
-        self.batch_size = batch_size
-
+        self.model = model #initialize model
+        self.epoch = epoch #initialize epoch
+        self.optimizer = optim.Adam(self.model.parameters()) #initialize optimizer
+        self.loss_fn = nn.MSELoss() #initialize loss function
+        self.batch_size = batch_size #initialize batch size
+    
+    #online training
     def train_one_by_one(self,x_train,y_train, alpha=0.0, l1_ratio=0.0):
         for t in range(0,self.epoch):
-            loss = 0
-            correct = 0
-            for i in range(0,len(x_train)):
-                y_pred = self.model(x_train[i,:], correlation)
+            loss = 0 #initialize loss
+            correct = 0 #initialize number of correct prediction
+            for i in range(0,len(x_train)): #loop through all training samples
+                y_pred = self.model(x_train[i,:], correlation) #get prediction from neural network
                 #Accuracy
                 if abs(y_pred - y_train[i,:]) < 3:
                     correct += 1
@@ -71,7 +75,7 @@ class Trainer(object):
                 loss = self.loss_fn(y_pred, y_train[i,:])#+penalty
                 # Zero all gradients
                 self.optimizer.zero_grad()
-                #Backward pass
+                #Backward propogation
                 loss.backward()
                 # Update weights
                 self.optimizer.step()
@@ -80,17 +84,16 @@ class Trainer(object):
                 # Print the gredient
                 print(self.model.fc1.weight.grad)
                 print ("epoch: {0:02d} | loss: {1:.2f} | acc: {2:.1f}".format(t, loss, correct / len(y_train)))
-
+    #batch training
     def train_by_random(self, train, correlation, indexes, complement_index, alpha=0.0, beta = 0.0,  l1_ratio=0.0):
         for t in range(0,self.epoch):
             from math import ceil
-            loss = 0
-            correct = 0
-            acc = 0
+            loss = 0 #initialize loss
+            correct = 0 #initialize number of correct prediction
+            acc = 0 #initialize accuracy
             random_index = torch.randperm(len(train))
-            random_train = train[random_index]
-            #proint(random_train.shape)
-            x_train = random_train[:,1:]
+            random_train = train[random_index] #shuffle training samples
+            x_train = random_train[:,1:] 
             y_train = random_train[:,0].reshape(-1,1)
             for i in range(0,ceil(len(x_train) // self.batch_size)):
                 start_index = i*self.batch_size
