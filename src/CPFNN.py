@@ -95,10 +95,10 @@ class Trainer(object):
             random_train = train[random_index] #shuffle training samples
             x_train = random_train[:,1:]  #select training input
             y_train = random_train[:,0].reshape(-1,1) #select training label
-            for i in range(0,ceil(len(x_train) // self.batch_size)):
-                start_index = i*self.batch_size
+            for i in range(0,ceil(len(x_train) // self.batch_size)): #loop through train set by batch size
+                start_index = i*self.batch_size 
                 end_index = (i+1)*self.batch_size if (i+1)*self.batch_size <= len(x_train) else len(x_train)
-                random_train = x_train[start_index:end_index,:]
+                random_train = x_train[start_index:end_index,:] #select batch of training samples
                 y_labels = y_train[start_index:end_index].reshape(-1,1)
                 y_pred = self.model(random_train, correlation, indexes, complement_index)
                 acc +=  torch.sum(torch.abs(torch.sub(y_labels, y_pred)))
