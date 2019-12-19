@@ -93,8 +93,8 @@ class Trainer(object):
             acc = 0 #initialize accuracy
             random_index = torch.randperm(len(train))
             random_train = train[random_index] #shuffle training samples
-            x_train = random_train[:,1:] 
-            y_train = random_train[:,0].reshape(-1,1)
+            x_train = random_train[:,1:]  #select training input
+            y_train = random_train[:,0].reshape(-1,1) #select training label
             for i in range(0,ceil(len(x_train) // self.batch_size)):
                 start_index = i*self.batch_size
                 end_index = (i+1)*self.batch_size if (i+1)*self.batch_size <= len(x_train) else len(x_train)
