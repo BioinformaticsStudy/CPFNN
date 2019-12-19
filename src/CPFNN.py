@@ -8,9 +8,9 @@ import correlation
 
 # settings
 class Config(object):
-    #Dimentions: 473034 303236 9607 8105 8195. 
+    #Common dimentions (CpG sites) we used: 473034 303236 9607 8105 8195. 
     input_dim = 473034 #the number of biological makers
-    hidden_dim = 200   #the number of neuro in hidden layer 
+    hidden_dim = 200   #the number of neuros in hidden layer 
     train_file_path = './../data/sample_training.csv' #training file path
     test_file_path = './../data/sample_test.csv' #test file path
     output_dim = 1     #the output is the predicted age
@@ -41,10 +41,10 @@ class neural_network_CPNFN(nn.Module):
        
         a_1 = F.leaky_relu(self.fc1(x_in))  # activaton function added!
         y_pred = F.leaky_relu(self.fc2(a_1)) #prediction
-        self.l1_penalty = torch.norm(self.fc1.weight,1) #l1 penality
-        self.l2_penalty = torch.norm(self.fc1.weight,2) #l2 penality
-        self.corr_l1_penalty = torch.sum(torch.sum(torch.abs(self.fc1.weight), dim = 0)[indexes]) #corr lasso penality
-        self.corr_l2_penalty = torch.sum(torch.sum((self.fc1.weight)**2, dim = 0)[counter]) #corr ridge penality
+        self.l1_penalty = torch.norm(self.fc1.weight,1) #calculating l1 penality, using norm 1 (absolute value norm)
+        self.l2_penalty = torch.norm(self.fc1.weight,2) #calculating l2 penality, using norm 2 (Euclidean norm)
+        self.corr_l1_penalty = torch.sum(torch.sum(torch.abs(self.fc1.weight), dim = 0)[indexes]) #corr lasso (l1) penality
+        self.corr_l2_penalty = torch.sum(torch.sum((self.fc1.weight)**2, dim = 0)[counter]) #corr ridge (l2) penality
         if apply_softmax:
             y_pred = F.softmax(y_pred, dim=1) #apply softmax to the prediction
 
@@ -57,29 +57,29 @@ class Trainer(object):
         self.model = model #initialize model
         self.epoch = epoch #initialize epoch
         self.optimizer = optim.Adam(self.model.parameters()) #initialize optimizer
-        self.loss_fn = nn.MSELoss() #initialize loss function
+        self.loss_fn = nn.MSELoss() #initialize a Mean Square Error loss function
         self.batch_size = batch_size #initialize batch size
     
-    #online training
-    def train_one_by_one(self,x_train,y_train, alpha=0.0, l1_ratio=0.0):
+    #online training (one by one training)
+    def train_one_by_one(self,x_train,y_train, alpha=0.0, l1_ratio=0.0): #x_train is input features, y_train is labels, alpha is the penalty, l1_ratio is the perentage of l1 penalty in alpha
         for t in range(0,self.epoch):
             loss = 0 #initialize loss
             correct = 0 #initialize number of correct prediction
             for i in range(0,len(x_train)): #loop through all training samples
                 y_pred = self.model(x_train[i,:], correlation) #get prediction from neural network
                 #Accuracy
-                if abs(y_pred - y_train[i,:]) < 3:
+                if abs(y_pred - y_train[i,:]) < 3: # age difference < 3
                     correct += 1
                 # Loss
                 #penalty = alpha*(l1_ratio*self.model.l1_penalty+(1-l1_ratio)*self.model.l2_penalty)
-                loss = self.loss_fn(y_pred, y_train[i,:])#+penalty
+                loss = self.loss_fn(y_pred, y_train[i,:]) # +penalty
                 # Zero all gradients
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad() # disgard all previous gradients
                 #Backward propogation
                 loss.backward()
                 # Update weights
                 self.optimizer.step()
-                                # Verbose
+            # Verbose
             if (t%20==0):
                 # Print the gredient
                 print(self.model.fc1.weight.grad)
@@ -91,6 +91,7 @@ class Trainer(object):
             loss = 0 #initialize loss
             correct = 0 #initialize number of correct prediction
             acc = 0 #initialize accuracy
+            #shuffle
             random_index = torch.randperm(len(train))
             random_train = train[random_index] #shuffle training samples
             x_train = random_train[:,1:]  #select training input features
