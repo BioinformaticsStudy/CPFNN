@@ -97,22 +97,28 @@ class Trainer(object):
             x_train = random_train[:,1:]  #select training input features
             y_train = random_train[:,0].reshape(-1,1) #select training label
             for i in range(0,ceil(len(x_train) // self.batch_size)): #loop through train set by batch size
+                #select batch of training input features
                 start_index = i*self.batch_size 
                 end_index = (i+1)*self.batch_size if (i+1)*self.batch_size <= len(x_train) else len(x_train)
-                random_train = x_train[start_index:end_index,:] #select batch of training input features
+                random_train = x_train[start_index:end_index,:] 
+                
                 y_labels = y_train[start_index:end_index].reshape(-1,1) #select batch of training labels
                 y_pred = self.model(random_train, correlation, indexes, complement_index) #get prediction from neural network
-                acc +=  torch.sum(torch.abs(torch.sub(y_labels, y_pred)))
+                acc +=  torch.sum(torch.abs(torch.sub(y_labels, y_pred))) #accuracy
+                
                 # Loss
                 penalty = alpha * self.model.corr_l1_penalty + beta * self.model.corr_l2_penalty 
                 loss = self.loss_fn(y_pred, y_labels)+penalty
+                
                 # Zero all gradients
-                self.optimizer.zero_grad()
+                self.optimizer.zero_grad() #disgard all previous gradients
+                
                 #Backward pass
                 loss.backward()
+                
                 # Update weights
                 self.optimizer.step()
-                                # Verbose
+            # Verbose
             if (t%20==0):
                 print ("epoch: {0:02d} | loss: {1:.2f} | acc: {2:.2f}".format(t, loss, acc / len(y_train)))
 
@@ -122,6 +128,7 @@ class Trainer(object):
         correct = sum(list(map(lambda x: 1 if x<2 else 0,difference))) #regard prediction error within 2 years as correct and count correct prediction
         return correct
 
+    #testing
     def test(self,x_test,y_test, correlation, indexes, complement_indexes):
         model = self.model.eval()
         pred_test = model(x_test, correlation, indexes, complement_indexes) #get prediction from neural network
@@ -141,14 +148,14 @@ if torch.cuda.is_available():
 else:
     print("GPU is not available to use.\n")
 
-opt = Config()
+opt = Config()  
 
 print('alpha', opt.alpha)
 print('beta', opt.beta)
 print('epoch', opt.epoch_num)
 
-device = None
 #select avaliable GPU/CPU device
+device = None
 if opt.use_gpu and torch.cuda.is_available():
     device = torch.device('cuda')  
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
@@ -164,10 +171,11 @@ print("Finish read test set")
 #calculate spearman and pearson correlation between CpG sites and age
 spearman_corr,pearson_corr = correlation.calculate_correlation(train) 
 
-#get index of correlation that above threshod and below threshod
-spearman_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])<opt.cor]
+#spearman: get index of correlation that above threshod and below threshold
+spearman_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])<opt.cor] #return all x that satisfy the if condition
 print(len(spearman_index))
 spearman_complement_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])>opt.cor]
+#pearson: get index of correlation that above threshod and below threshold
 pearson_index = [x for x in range(len(pearson_corr)) if abs(pearson_corr[x])<opt.cor]
 pearson_complement_index = [x for x in range(len(pearson_corr)) if abs(pearson_corr[x])>opt.cor]
 #submit training and testing data to GPU/CPU nodes
