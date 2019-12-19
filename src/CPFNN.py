@@ -93,17 +93,17 @@ class Trainer(object):
             acc = 0 #initialize accuracy
             random_index = torch.randperm(len(train))
             random_train = train[random_index] #shuffle training samples
-            x_train = random_train[:,1:]  #select training input
+            x_train = random_train[:,1:]  #select training input features
             y_train = random_train[:,0].reshape(-1,1) #select training label
             for i in range(0,ceil(len(x_train) // self.batch_size)): #loop through train set by batch size
                 start_index = i*self.batch_size 
                 end_index = (i+1)*self.batch_size if (i+1)*self.batch_size <= len(x_train) else len(x_train)
-                random_train = x_train[start_index:end_index,:] #select batch of training samples
-                y_labels = y_train[start_index:end_index].reshape(-1,1)
-                y_pred = self.model(random_train, correlation, indexes, complement_index)
+                random_train = x_train[start_index:end_index,:] #select batch of training input features
+                y_labels = y_train[start_index:end_index].reshape(-1,1) #select batch of training labels
+                y_pred = self.model(random_train, correlation, indexes, complement_index) #get prediction from neural network
                 acc +=  torch.sum(torch.abs(torch.sub(y_labels, y_pred)))
                 # Loss
-                penalty = alpha * self.model.corr_l1_penalty + beta * self.model.corr_l2_penalty
+                penalty = alpha * self.model.corr_l1_penalty + beta * self.model.corr_l2_penalty 
                 loss = self.loss_fn(y_pred, y_labels)+penalty
                 # Zero all gradients
                 self.optimizer.zero_grad()
@@ -117,14 +117,15 @@ class Trainer(object):
 
     @staticmethod
     def get_accuracy(y_labels,y_pred):
-        difference = torch.abs(y_labels-y_pred)
-        correct = sum(list(map(lambda x: 1 if x<2 else 0,difference)))
+        difference = torch.abs(y_labels-y_pred) #difference between prediction and labels
+        correct = sum(list(map(lambda x: 1 if x<2 else 0,difference))) #regard prediction error within 2 years as correct and count correct prediction
         return correct
 
     def test(self,x_test,y_test, correlation, indexes, complement_indexes):
         model = self.model.eval()
-        pred_test = model(x_test, correlation, indexes, complement_indexes)
-        x = torch.cat([pred_test,y_test],1)
+        pred_test = model(x_test, correlation, indexes, complement_indexes) #get prediction from neural network
+        #calculate mean absolute error of predicitons
+        x = torch.cat([pred_test,y_test],1) 
         x_arr = x.cpu().data.numpy()
         x_sz = len(x_arr)
         sum = 0
@@ -146,23 +147,29 @@ print('beta', opt.beta)
 print('epoch', opt.epoch_num)
 
 device = None
+#select avaliable GPU/CPU device
 if opt.use_gpu and torch.cuda.is_available():
     device = torch.device('cuda')  
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
 else: 
     device = torch.device('cpu')
 
-train = np.loadtxt(opt.train_file_path, skiprows=1, delimiter=',')
+#read in training data
+train = np.loadtxt(opt.train_file_path, skiprows=1, delimiter=',') 
 print("Finish read training set")
+#read in test data
 test = np.loadtxt(opt.test_file_path, skiprows=1, delimiter=',')
 print("Finish read test set")
+#calculate spearman and pearson correlation between CpG sites and age
 spearman_corr,pearson_corr = correlation.calculate_correlation(train) 
 
+#get index of correlation that above threshod and below threshod
 spearman_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])<opt.cor]
 print(len(spearman_index))
 spearman_complement_index = [x for x in range(len(spearman_corr)) if abs(spearman_corr[x])>opt.cor]
 pearson_index = [x for x in range(len(pearson_corr)) if abs(pearson_corr[x])<opt.cor]
 pearson_complement_index = [x for x in range(len(pearson_corr)) if abs(pearson_corr[x])>opt.cor]
+#submit training and testing data to GPU/CPU nodes
 train = torch.from_numpy(train).float().to(device)
 test = torch.from_numpy(test).float().to(device)
 spearman_corr = torch.from_numpy(spearman_corr).float().to(device)
@@ -171,14 +178,18 @@ pearson_corr = torch.from_numpy(pearson_corr).float().to(device)
 print(train.shape)
 print(test.shape)
 
+#separate training/testing input features and labels
 x_train = train[:,1:]
 y_train = train[:,0].reshape(-1,1)
 x_test = test[:,1:]
 y_test = test[:,0].reshape(-1,1)
 
+#build the neural network model
 model = neural_network_CPFNN(input_dim=opt.input_dim,hidden_dim=opt.hidden_dim,output_dim=opt.output_dim, indexes = spearman_index).to(device)
 
+#train the neural network model
 trainer = Trainer(epoch=opt.epoch_num,model=model,batch_size=opt.batch_size)
 trainer.train_by_random(train, spearman_corr, spearman_index, spearman_complement_index, alpha =  opt.alpha, beta = opt.beta, l1_ratio =  opt.l1_ratio )
+#test the neural network model
 trainer.test(x_test, y_test, spearman_corr, spearman_index, spearman_complement_index)
 
