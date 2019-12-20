@@ -1,0 +1,5 @@
+GSE67530,characteristics_ch1.1.age,characteristics_ch1.3.ards,NA,0,0
+GSE50660,characteristics_ch1.1.age, 0,0,0,0
+GSE61151,characteristics_ch1.12.agebloodtaken, 0, 0, 0, 0
+GSE87650,characteristics_ch1.0.age,characteristics_ch1.2.disease state (diagnosisfull), HL (Healthy control (Lab volunteer)), characteristics_ch1.0.cell type, Whole blood
+GSE52113,characteristics_ch1.2.age,0,0,0,0
