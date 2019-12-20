@@ -1,6 +1,6 @@
 # Parser
 
-To use the GEO_parser.py, you need to provide a txt file named geo_info.txt which records information about GEO file you want to use. You also need to download the cleaned_sites_common.txt file to help parse to filter the unrelated columns. Each GEO dataset is one line. The format of the line is following:
+To use the GEO_parser.py, you need to provide a txt file named geo_info.txt which records information about GEO file you want to use. You also need to download the cleaned_sites_common.txt file to help parse to filter the unrelated columns. Each line is a GEO dataset. The format of geo_info.txt is following:
 
 GEO_Dataset_ID, identified_age_string, identified_disease_string, identified_healthy_string ,tissue_type_label, tissue_type_name
 
