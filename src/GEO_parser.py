@@ -149,6 +149,7 @@ def main():
     geo_dict = get_geo_dict("./geo_info.txt")
     print("Going to parse: ", list(geo_dict.keys()), "\n")
 
+    #parse each dataset and contact them
     for geo_id in geo_dict.keys():
         value_list = geo_dict[geo_id]
         age_str = value_list[0]
