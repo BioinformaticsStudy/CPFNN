@@ -24,7 +24,7 @@ class Config(object):
     use_gpu = True  # use GPU or not
 
 
-class neural_network_CPNFN(nn.Module):
+class neural_network_CPFFN(nn.Module):
     #initialize neural network structure
     def __init__(self, input_dim, hidden_dim,output_dim, indexes):
         super(neural_network, self).__init__()
